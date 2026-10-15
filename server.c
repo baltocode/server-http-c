@@ -9,6 +9,7 @@
 int main(void)
 {
     int server_socket;
+    int client_socket;
     struct sockaddr_in server_address = {0};
 
     /* Crea un socket IPv4 di tipo TCP. */
@@ -35,7 +36,7 @@ int main(void)
         return 1;
     }
 
-    /* Trasforma il socket in un socket passivo, in ascolto. */
+    /* Mette il socket in ascolto. */
     if (listen(server_socket, BACKLOG) == -1) {
         perror("listen");
         close(server_socket);
@@ -43,7 +44,20 @@ int main(void)
     }
 
     printf("Server listening on port %d\n", PORT);
+    printf("Waiting for a client...\n");
 
+    /* Attende la connessione di un client. */
+    client_socket = accept(server_socket, NULL, NULL);
+
+    if (client_socket == -1) {
+        perror("accept");
+        close(server_socket);
+        return 1;
+    }
+
+    printf("Client connected successfully\n");
+
+    close(client_socket);
     close(server_socket);
 
     return 0;
