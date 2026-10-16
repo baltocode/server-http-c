@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -12,8 +13,24 @@ int main(void)
     int server_socket;
     int client_socket;
     char buffer[BUFFER_SIZE];
+    char response[BUFFER_SIZE];
     ssize_t bytes_received;
+    ssize_t bytes_sent;
+    int response_length;
     struct sockaddr_in server_address = {0};
+
+    const char html[] =
+        "<!DOCTYPE html>"
+        "<html>"
+        "<head>"
+        "<meta charset=\"UTF-8\">"
+        "<title>C HTTP Server</title>"
+        "</head>"
+        "<body>"
+        "<h1>Hello from my C server!</h1>"
+        "<p>This page was sent by a program running in WSL.</p>"
+        "</body>"
+        "</html>";
 
     /* Crea un socket IPv4 di tipo TCP. */
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -59,9 +76,8 @@ int main(void)
     }
 
     printf("Client connected successfully\n");
-    printf("Waiting for the HTTP request...\n");
 
-    /* Legge i dati inviati dal client. */
+    /* Riceve la richiesta HTTP. */
     bytes_received = recv(
         client_socket,
         buffer,
@@ -79,11 +95,41 @@ int main(void)
     if (bytes_received == 0) {
         printf("The client closed the connection without sending data\n");
     } else {
-        /* Aggiunge il terminatore necessario per trattare i dati come testo. */
         buffer[bytes_received] = '\0';
 
         printf("\nHTTP request received:\n\n");
         printf("%s\n", buffer);
+
+        /* Costruisce la risposta HTTP. */
+        response_length = snprintf(
+            response,
+            sizeof(response),
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html; charset=UTF-8\r\n"
+            "Content-Length: %zu\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "%s",
+            sizeof(html) - 1,
+            html
+        );
+
+        /* Invia la risposta al browser. */
+        bytes_sent = send(
+            client_socket,
+            response,
+            (size_t)response_length,
+            0
+        );
+
+        if (bytes_sent == -1) {
+            perror("send");
+            close(client_socket);
+            close(server_socket);
+            return 1;
+        }
+
+        printf("HTTP response sent successfully\n");
     }
 
     close(client_socket);
